@@ -158,7 +158,6 @@ pre.bib{background:#14161d;color:#dfe4f0;border-radius:12px;padding:18px 20px;fo
 
 footer{margin-top:64px;border-top:1px solid var(--grid);padding:26px 0 40px;font-size:13px;color:var(--muted);text-align:center}
 footer a{color:var(--ink-2)}
-@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
 </style>
 </head>
 <body>
@@ -495,7 +494,9 @@ Score: 90</div></details>
 (function(){
   var cv=document.getElementById('hero'),ctx=cv.getContext('2d');
   var W=cv.width,H=cv.height;
-  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* The published homepage intentionally keeps its full animation experience
+     even when the OS/browser requests reduced motion. */
+  var reduced=false;
   var ACC='#2a78d6',DEEP='#1c5cab',WARM='#eb6834',INK='#0b0b0b',MUT='#898781',GRID='#e1e0d9',SURF='#fcfcfb';
   var TOKENS=[
     {label:'lane',c:'#2a78d6'},{label:'agents',c:'#1baf7a'},{label:'signal',c:'#eda100'},
@@ -619,7 +620,8 @@ Score: 90</div></details>
 (function(){
   var C=document.getElementById('lab3d'),X=C.getContext('2d');
   var W=C.width,H=C.height,TAU=Math.PI*2;
-  var reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /* Keep the full 3D sequence enabled regardless of the system preference. */
+  var reduceMotion=false;
   /* light-surface palette (same roles as FinalizeV2's col{}) */
   var col={ink:'#0b0b0b',muted:'#898781',teal:'#0e7d74',sky:'#2a78d6',blue:'#1c5cab',orange:'#c26a10',
            red:'#d03b3b',green:'#0a7d3f',gold:'#9a7413',purple:'#6a5acd',gray:'#6f6d68',white:'#3a3935'};
