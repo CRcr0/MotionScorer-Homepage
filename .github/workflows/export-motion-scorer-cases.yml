@@ -1,0 +1,105 @@
+name: Export MotionScorer case-study videos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/export-motion-scorer-cases.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract embedded and linked case videos
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import base64, json, re
+          from bs4 import BeautifulSoup
+
+          root = Path('.')
+          html = (root / 'showcase_FINAL.html').read_text(encoding='utf-8')
+          soup = BeautifulSoup(html, 'html.parser')
+          out = root / 'exported_cases'
+          out.mkdir(exist_ok=True)
+
+          manifest = []
+          case_idx = 0
+          for h3 in soup.find_all('h3'):
+              title = ' '.join(h3.stripped_strings)
+              if not title.lower().startswith('case '):
+                  continue
+              case_idx += 1
+              grid = h3.find_next_sibling('div', class_='grid')
+              if grid is None:
+                  continue
+              clips = []
+              for j, cell in enumerate(grid.find_all('div', class_='cell', recursive=False), 1):
+                  lab = cell.find('div', class_='lab')
+                  label = ' '.join(lab.stripped_strings) if lab else f'planner-{j}'
+                  video = cell.find('video')
+                  if video is None:
+                      continue
+                  src = video.get('src','')
+                  safe = re.sub(r'[^A-Za-z0-9]+','_', label).strip('_').lower()
+                  fn = f'case{case_idx:02d}_{j:02d}_{safe}.mp4'
+                  dst = out / fn
+                  if src.startswith('data:video/mp4;base64,'):
+                      dst.write_bytes(base64.b64decode(src.split(',',1)[1]))
+                  else:
+                      p = (root / src).resolve()
+                      if not p.exists():
+                          raise FileNotFoundError(f'{src} referenced by {title}')
+                      dst.write_bytes(p.read_bytes())
+                  score = ''
+                  sc = cell.find('div', class_='sc')
+                  if sc:
+                      score = ' | '.join(sc.stripped_strings)
+                  why = ''
+                  wh = cell.find('div', class_='why')
+                  if wh:
+                      why = ' '.join(wh.stripped_strings)
+                  words = ''
+                  vt = cell.find('div', class_='vtext')
+                  if vt:
+                      words = ' '.join(vt.stripped_strings)
+                  clips.append({
+                      'label': label,
+                      'file': fn,
+                      'scores': score,
+                      'why': why,
+                      'model_words': words
+                  })
+              manifest.append({'case': case_idx, 'title': title, 'clips': clips})
+
+          (out / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Probe exported videos
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "file,duration,width,height,fps,codec"
+            for f in exported_cases/*.mp4; do
+              d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
+              wh=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,codec_name -of csv=p=0 "$f")
+              echo "$(basename "$f"),$d,$wh"
+            done
+          } | tee exported_cases/probe.csv
+
+      - name: Upload case-study export
+        uses: actions/upload-artifact@v4
+        with:
+          name: motion-scorer-case-videos
+          path: exported_cases/
+          retention-days: 7
