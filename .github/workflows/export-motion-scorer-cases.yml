@@ -16,11 +16,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --quiet beautifulsoup4
-          sudo apt-get update -y >/dev/null
-          sudo apt-get install -y ffmpeg >/dev/null
+      - name: Install parser dependency
+        run: python -m pip install --quiet beautifulsoup4
 
       - name: Extract embedded and linked case videos
         shell: bash
@@ -89,19 +86,6 @@ jobs:
           (out / 'manifest.json').write_text(json.dumps(manifest, indent=2), encoding='utf-8')
           print(json.dumps(manifest, indent=2))
           PY
-
-      - name: Probe exported videos
-        shell: bash
-        run: |
-          set -euo pipefail
-          {
-            echo "file,duration,width,height,fps,codec"
-            for f in exported_cases/*.mp4; do
-              d=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f")
-              wh=$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height,r_frame_rate,codec_name -of csv=p=0 "$f")
-              echo "$(basename "$f"),$d,$wh"
-            done
-          } | tee exported_cases/probe.csv
 
       - name: Upload case-study export
         uses: actions/upload-artifact@v4
