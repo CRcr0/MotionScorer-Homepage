@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install parser dependency
+        run: python -m pip install --quiet beautifulsoup4
+
       - name: Extract embedded and linked case videos
         shell: bash
         run: |
